@@ -15,6 +15,7 @@ Although MapReduce as a system is considered a legacy framework today, its progr
 Q: *What does MapReduce solve?*
 
 A: MapReduce provides a framework for processing and generating large data sets on a distributed cluster. It abstracts away the complexities of a distributed system such as parallelization, fault tolerance, data distribution, and load balancing, allowing developers to focus on the map and reduce functions (business core logic). 
+
 In other words, with this kinda framework, teams can build scalable distributed data processing pipelines without requiring every engineer to be an expert in distributed systems.
 
 ## Example to Run (Sequential Version)
