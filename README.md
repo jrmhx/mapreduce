@@ -1,5 +1,7 @@
 # Tiny MapReduce
 
+This project is an independent implementation of a MapReduce-like distributed framework for learning purposes.
+
 ## Overview
 
 Q: *Whats MapReduce?*
