@@ -12,7 +12,7 @@ go build -o build/seq ./cmd/sequential/
 # Run
 cd build
 rm -f mr-out*
-./seq wc.so ../tests/testdata/pg*.txt
+./seq wc.so ../testdata/pg*.txt
 
 # View sorted output
 sort mr-out-0
