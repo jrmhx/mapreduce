@@ -1,4 +1,4 @@
-package worker
+package main
 
 //
 // start a worker process, which is implemented
