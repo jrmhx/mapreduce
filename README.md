@@ -3,6 +3,7 @@
 ## Overview
 
 Q: *Whats MapReduce?*
+
 A: [MapReduce](https://pdos.csail.mit.edu/6.824/papers/mapreduce.pdf) is a distributed programming model developed by Jeffrey Dean and Sanjay Ghemawat at Google in 2004 for processing and generating large data sets with a parallel algorithm on a cluster. It consists of two main steps: 
 - the Map step, where the input data is processed and transformed into intermediate key-value pairs.
 - the Reduce step, where the intermediate key-value pairs are aggregated to produce the final output.
@@ -12,6 +13,7 @@ Although MapReduce as a system is considered a legacy framework today, its progr
 ![MapReduce Execution Workflow](./image.png)
 
 Q: *What does MapReduce solve?*
+
 A: MapReduce provides a framework for processing and generating large data sets on a distributed cluster. It abstracts away the complexities of a distributed system such as parallelization, fault tolerance, data distribution, and load balancing, allowing developers to focus on the map and reduce functions (business core logic). 
 In other words, with this kinda framework, teams can build scalable distributed data processing pipelines without requiring every engineer to be an expert in distributed systems.
 
