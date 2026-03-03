@@ -20,3 +20,4 @@ type ExampleReply struct {
 }
 
 // Add your RPC definitions here.
+// func (t *T) MethodName(argType T1, replyType *T2) error
