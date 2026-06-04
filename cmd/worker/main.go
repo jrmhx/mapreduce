@@ -35,11 +35,11 @@ func main() {
 func loadPlugin(filename string) (func(string, string) []mr.KeyValue, func(string, []string) string) {
 	p, err := plugin.Open(filename)
 	if err != nil {
-		log.Fatalf("cannot load plugin %v", filename)
+		log.Fatalf("cannot load plugin %v, error: %s", filename, err.Error())
 	}
 	xmapf, err := p.Lookup("Map")
 	if err != nil {
-		log.Fatalf("cannot find Map in %v", filename)
+		log.Fatalf("cannot find Map in %v, error: %s", filename, err.Error())
 	}
 	mapf := xmapf.(func(string, string) []mr.KeyValue)
 	xreducef, err := p.Lookup("Reduce")

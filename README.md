@@ -29,10 +29,17 @@ go build -buildmode=plugin -o build/wc.so ./plugins/wc/
 # Build sequential runner
 go build -o build/seq ./cmd/sequential/
 
-# Run
+# Run sequential runner
 cd build
 rm -f mr-out*
 ./seq wc.so ../testdata/pg*.txt
+
+# Run coordinator 
+go run ./cmd/coordinator sock123 ./testdata/pg-*.txt
+
+# Run workers
+go run ./cmd/worker ./build/wc.so sock123 
+
 
 # View sorted output
 sort mr-out-0

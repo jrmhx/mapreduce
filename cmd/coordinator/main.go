@@ -19,7 +19,7 @@ import (
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "Usage: mrcoordinator sockname inputfiles...\n")
+		fmt.Fprintf(os.Stderr, "Usage: coordinator sockname inputfiles...\n")
 		os.Exit(1)
 	}
 
