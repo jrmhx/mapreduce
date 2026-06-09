@@ -41,3 +41,7 @@ build/
 
 # Unix Socket files
 sock*
+
+# Testing files
+*.log
+tests/mr-tmp-*/
