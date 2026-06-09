@@ -48,7 +48,7 @@ func Worker(sockname string, mapf func(string, string) []KeyValue,
 	for {
 		task, err := CallFetchTask()
 		if err != nil {
-			time.Sleep(time.Second)
+			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 
@@ -56,31 +56,31 @@ func Worker(sockname string, mapf func(string, string) []KeyValue,
 		case MapTask:
 			if err := Map(task); err != nil {
 				log.Printf("map task %d failed: %v", task.Id, err)
-				time.Sleep(time.Second)
+				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 			for {
 				if err := CallReportDone(task.Id, task.Type); err == nil {
 					break
 				}
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 			}
 		case ReduceTask:
 			if err := Reduce(task); err != nil {
 				log.Printf("reduce task %d failed: %v", task.Id, err)
-				time.Sleep(time.Second)
+				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 			for {
 				if err := CallReportDone(task.Id, task.Type); err == nil {
 					break
 				}
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 			}
 		case DoneTask:
 			return
 		case IdleTask:
-			time.Sleep(time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }

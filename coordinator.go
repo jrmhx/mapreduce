@@ -64,73 +64,34 @@ func (c *Coordinator) FetchTask(_ *struct{}, reply *FetchTaskReply) error {
 	defer c.mu.Unlock()
 	switch c.phase {
 	case MapPhase:
-		LatestProcTask := Task{
-			-1,
-			"",
-			time.Time{},
-			Processing,
-		}
 		reply.Type = MapTask
 		reply.NReduce = len(c.rdtsks)
 		reply.NMap = len(c.mptsks)
 		for tid, t := range c.mptsks {
-			switch t.status {
-			case Idle:
+			if t.status == Idle {
 				reply.Id = tid
 				reply.Filename = t.filename
 				t.start = time.Now()
 				t.status = Processing
 				return nil
-			case Processing:
-				if LatestProcTask.id == -1 || t.start.After(LatestProcTask.start) {
-					LatestProcTask.id = t.id
-					LatestProcTask.filename = t.filename
-					LatestProcTask.start = t.start
-					LatestProcTask.status = t.status
-				}
 			}
 		}
-		if LatestProcTask.id != -1 {
-			reply.Id = LatestProcTask.id
-			reply.Filename = LatestProcTask.filename
-			c.mptsks[reply.Id].status = Processing
-		} else {
-			return errors.New("Cannot fetch map task")
-		}
+		reply.Type = IdleTask
+		return nil
 	case ReducePhase:
-		LatestProcTask := Task{
-			-1,
-			"",
-			time.Time{},
-			Processing,
-		}
 		reply.Type = ReduceTask
 		reply.NReduce = len(c.rdtsks)
 		reply.NMap = len(c.mptsks)
 		for tid, t := range c.rdtsks {
-			switch t.status {
-			case Idle:
+			if t.status == Idle {
 				reply.Id = tid
 				t.start = time.Now()
 				t.status = Processing
 				return nil
-			case Processing:
-				if LatestProcTask.id == -1 || t.start.After(LatestProcTask.start) {
-					LatestProcTask.id = t.id
-					// reduce task dont need filename
-					// LatestProcTask.filename = t.filename
-					LatestProcTask.start = t.start
-					LatestProcTask.status = t.status
-				}
 			}
 		}
-		if LatestProcTask.id != -1 {
-			reply.Id = LatestProcTask.id
-			// reply.Filename = LatestProcTask.filename
-			c.rdtsks[reply.Id].status = Processing
-		} else {
-			return errors.New("Cannot fetch reduce task")
-		}
+		reply.Type = IdleTask
+		return nil
 	case DonePhase:
 		reply.Type = DoneTask
 	default:
