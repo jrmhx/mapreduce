@@ -1,12 +1,15 @@
 package mapreduce
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"log"
 	"net/rpc"
 	"os"
+	"sort"
 	"time"
 )
 
@@ -25,45 +28,61 @@ func ihash(key string) int {
 }
 
 var coordSockName string // socket for coordinator
+var currentMapf func(string, string) []KeyValue
+var currentReducef func(string, []string) string
+
+type ByKey []KeyValue
+
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
 // main/mrworker.go calls this function.
 func Worker(sockname string, mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	coordSockName = sockname
+	currentMapf = mapf
+	currentReducef = reducef
 
-	// Your worker implementation here.
 	for {
-		if task, err := CallFetchTask(); err == nil {
-			switch task.Type {
-			case MapTask:
-				// TODO Map
-				// Map()
-				for {
-					if err := CallReportDone(task.Id, task.Type); err == nil {
-						break
-					}
-					time.Sleep(500 * time.Millisecond)
-				}
-			case ReduceTask:
-				// TODO Reduce
-				// Reduce()
-				for {
-					if err := CallReportDone(task.Id, task.Type); err == nil {
-						break
-					}
-					time.Sleep(500 * time.Millisecond)
-				}
-			case DoneTask:
-				break
-			}
-		} else {
+		task, err := CallFetchTask()
+		if err != nil {
 			time.Sleep(time.Second)
-			// handle err
+			continue
+		}
+
+		switch task.Type {
+		case MapTask:
+			if err := Map(task); err != nil {
+				log.Printf("map task %d failed: %v", task.Id, err)
+				time.Sleep(time.Second)
+				continue
+			}
+			for {
+				if err := CallReportDone(task.Id, task.Type); err == nil {
+					break
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+		case ReduceTask:
+			if err := Reduce(task); err != nil {
+				log.Printf("reduce task %d failed: %v", task.Id, err)
+				time.Sleep(time.Second)
+				continue
+			}
+			for {
+				if err := CallReportDone(task.Id, task.Type); err == nil {
+					break
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+		case DoneTask:
+			return
+		case IdleTask:
+			time.Sleep(time.Second)
 		}
 	}
-	// uncomment to send the Example RPC to the coordinator.
-	// CallExample()
 }
 
 // example function to show how to make an RPC call to the coordinator.
@@ -119,12 +138,122 @@ func CallReportDone(tid int, ttype TaskType) error {
 	}
 }
 
-func Map() {
+func Map(task FetchTaskReply) error {
+	if task.NReduce <= 0 {
+		return errors.New("missing reduce count")
+	}
 
+	file, err := os.Open(task.Filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	kva := currentMapf(task.Filename, string(content))
+	buckets := make([][]KeyValue, task.NReduce)
+	for _, kv := range kva {
+		reduceID := ihash(kv.Key) % task.NReduce
+		buckets[reduceID] = append(buckets[reduceID], kv)
+	}
+
+	for reduceID, bucket := range buckets {
+		if err := writeIntermediateFile(task.Id, reduceID, bucket); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func Reduce() {
+func Reduce(task FetchTaskReply) error {
+	kva := make([]KeyValue, 0)
 
+	for mapID := 0; mapID < task.NMap; mapID++ {
+		filename := fmt.Sprintf("mr-%d-%d", mapID, task.Id)
+		file, err := os.Open(filename)
+		if err != nil {
+			return err
+		}
+
+		dec := json.NewDecoder(file)
+		for {
+			var kv KeyValue
+			if err := dec.Decode(&kv); err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				file.Close()
+				return err
+			}
+			kva = append(kva, kv)
+		}
+		file.Close()
+	}
+
+	sort.Sort(ByKey(kva))
+
+	oname := fmt.Sprintf("mr-out-%d", task.Id)
+	tmp, err := os.CreateTemp(".", fmt.Sprintf("mr-out-%d-*", task.Id))
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+
+	i := 0
+	for i < len(kva) {
+		j := i + 1
+		for j < len(kva) && kva[j].Key == kva[i].Key {
+			j++
+		}
+		values := make([]string, 0, j-i)
+		for k := i; k < j; k++ {
+			values = append(values, kva[k].Value)
+		}
+		output := currentReducef(kva[i].Key, values)
+		if _, err := fmt.Fprintf(tmp, "%v %v\n", kva[i].Key, output); err != nil {
+			tmp.Close()
+			return err
+		}
+		i = j
+	}
+
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Remove(oname); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return os.Rename(tmp.Name(), oname)
+}
+
+func writeIntermediateFile(mapID, reduceID int, kvs []KeyValue) error {
+	oname := fmt.Sprintf("mr-%d-%d", mapID, reduceID)
+	tmp, err := os.CreateTemp(".", fmt.Sprintf("mr-%d-%d-*", mapID, reduceID))
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+
+	enc := json.NewEncoder(tmp)
+	for _, kv := range kvs {
+		if err := enc.Encode(&kv); err != nil {
+			tmp.Close()
+			return err
+		}
+	}
+
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Remove(oname); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return os.Rename(tmp.Name(), oname)
 }
 
 // send an RPC request to the coordinator, wait for the response.

@@ -62,74 +62,37 @@ type Coordinator struct {
 //
 // the RPC argument and reply types are defined in rpc.go.
 func (c *Coordinator) FetchTask(reply *FetchTaskReply) error {
+	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	switch c.phase {
 	case MapPhase:
-		LatestProcTask := Task{
-			-1,
-			"",
-			time.Time{},
-			Processing,
-		}
-		c.mu.Lock()
 		reply.Type = MapTask
 		reply.NReduce = len(c.rdtsks)
 		reply.NMap = len(c.mptsks)
 		for tid, t := range c.mptsks {
-			switch t.status {
-			case Idle:
+			if t.status == Idle {
 				reply.Id = tid
 				reply.Filename = t.filename
 				t.start = time.Now()
+				t.status = Processing
 				return nil
-			case Processing:
-				if LatestProcTask.id == -1 || t.start.After(LatestProcTask.start) {
-					LatestProcTask.id = t.id
-					LatestProcTask.filename = t.filename
-					LatestProcTask.start = t.start
-					LatestProcTask.status = t.status
-				}
 			}
 		}
-		if LatestProcTask.id != -1 {
-			reply.Id = LatestProcTask.id
-			reply.Filename = LatestProcTask.filename
-		} else {
-			return errors.New("Cannot fetch map task")
-		}
+		reply.Type = IdleTask
 	case ReducePhase:
-		LatestProcTask := Task{
-			-1,
-			"",
-			time.Time{},
-			Processing,
-		}
-		c.mu.Lock()
 		reply.Type = ReduceTask
 		reply.NReduce = len(c.rdtsks)
 		reply.NMap = len(c.mptsks)
 		for tid, t := range c.rdtsks {
-			switch t.status {
-			case Idle:
+			if t.status == Idle {
 				reply.Id = tid
 				t.start = time.Now()
+				t.status = Processing
 				return nil
-			case Processing:
-				if LatestProcTask.id == -1 || t.start.After(LatestProcTask.start) {
-					LatestProcTask.id = t.id
-					// reduce task dont need filename
-					// LatestProcTask.filename = t.filename
-					LatestProcTask.start = t.start
-					LatestProcTask.status = t.status
-				}
 			}
 		}
-		if LatestProcTask.id != -1 {
-			reply.Id = LatestProcTask.id
-			// reply.Filename = LatestProcTask.filename
-		} else {
-			return errors.New("Cannot fetch reduce task")
-		}
+		reply.Type = IdleTask
 	case DonePhase:
 		reply.Type = DoneTask
 	default:
@@ -181,16 +144,9 @@ func (c *Coordinator) server(sockname string) {
 // main/mrcoordinator.go calls Done() periodically to find out
 // if the entire job has finished.
 func (c *Coordinator) Done() bool {
-	ret := false
-
-	// Your code here.
-	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.phase == DonePhase {
-		ret = true
-	}
-
-	return ret
+	defer c.mu.Unlock()
+	return c.phase == DonePhase
 }
 
 func (c *Coordinator) PhaseUpdate() {
@@ -221,25 +177,23 @@ func (c *Coordinator) PhaseUpdate() {
 // main/mrcoordinator.go calls this function.
 // nReduce is the number of reduce tasks to use.
 func MakeCoordinator(sockname string, files []string, nReduce int) *Coordinator {
-	// Your code here.
 	nMap := len(files)
 	c := Coordinator{}
 	c.mptsks = make(map[int]*Task, nMap)
-	for id := range nMap {
+	for id, filename := range files {
 		c.mptsks[id] = &Task{
 			id:       id,
-			filename: files[id],
+			filename: filename,
 			start:    time.Time{},
 			status:   Idle,
 		}
 	}
 	c.rdtsks = make(map[int]*Task, nReduce)
-	for id := range nReduce {
+	for id := 0; id < nReduce; id++ {
 		c.rdtsks[id] = &Task{
-			id:       id,
-			filename: "",
-			start:    time.Time{},
-			status:   Idle,
+			id:     id,
+			start:  time.Time{},
+			status: Idle,
 		}
 	}
 	c.phase = MapPhase

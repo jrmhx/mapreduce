@@ -30,9 +30,9 @@ type ReportDoneReply struct {
 type FetchTaskReply struct {
 	Type     TaskType
 	Id       int
-	Filename string // for map task
+	Filename string
 	NReduce  int
-	NMap     int // for reduce task
+	NMap     int
 }
 
 // Add your RPC definitions here.
