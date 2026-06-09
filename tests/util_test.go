@@ -39,7 +39,6 @@ func startWorker(app string, i int, c chan int, sock string) {
 func runMRchan(files []string, app string, n int, c chan int, sock string) {
 	// wd, _ := os.Getwd()
 	// log.Printf("runMRchan: cwd = %s\n", wd)
-
 	coord := exec.Command("../build/coordinator", append([]string{sock}, files...)...)
 	coord.Stderr = os.Stderr
 	coord.Stdout = os.Stdout

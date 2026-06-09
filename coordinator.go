@@ -157,7 +157,8 @@ func (c *Coordinator) Done() bool {
 
 func (c *Coordinator) PhaseUpdate() {
 	mapDone, reduceDone := 0, 0
-
+	// TODO: bug, coordinator blocked when worker crash
+	// Need retry
 	for ev := range c.doneCh {
 		switch ev.Type {
 		case MapTask:
