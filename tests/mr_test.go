@@ -13,8 +13,8 @@ func TestWc(t *testing.T) {
 			cleanup()
 		}
 	})
-	app := "../../mrapps/wc.so"
-	files := findFilesPre("../main", "pg*txt", "..")
+	app := "../../build/wc.so"
+	files := findFilesPre("../testdata", "pg*txt", "..")
 	mkCorrectOutput(files, app, "mr-wc-correct.txt")
 	runMR(files, app, 3)
 	mergeOutput("mr-wc-all.txt")

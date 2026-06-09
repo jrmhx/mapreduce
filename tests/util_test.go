@@ -16,7 +16,10 @@ import (
 var tmp string
 
 func startWorker(app string, i int, c chan int, sock string) {
-	worker := exec.Command("../../main/mrworker", append([]string{app}, sock)...)
+	// wd, _ := os.Getwd()
+	// log.Printf("startWorker cwd = %s\n", wd)
+
+	worker := exec.Command("../../build/worker", append([]string{app}, sock)...)
 	worker.Stderr = os.Stderr
 	worker.Stdout = os.Stdout
 	worker.Dir = tmp
@@ -34,7 +37,10 @@ func startWorker(app string, i int, c chan int, sock string) {
 // Run MapReduce: start a coordinator and several workers,
 // and wait for the coordinator being done
 func runMRchan(files []string, app string, n int, c chan int, sock string) {
-	coord := exec.Command("../main/mrcoordinator", append([]string{sock}, files...)...)
+	// wd, _ := os.Getwd()
+	// log.Printf("runMRchan: cwd = %s\n", wd)
+
+	coord := exec.Command("../build/coordinator", append([]string{sock}, files...)...)
 	coord.Stderr = os.Stderr
 	coord.Stdout = os.Stdout
 	if err := coord.Start(); err != nil {
@@ -80,10 +86,10 @@ func coordinatorSock() string {
 // Generate correct output for a test
 func mkCorrectOutput(files []string, app, out string) {
 	args := append([]string{app}, files...)
-	cmd := exec.Command("../../main/mrsequential", args...)
+	cmd := exec.Command("../../build/seq", args...)
 	cmd.Dir = tmp
 	if err := cmd.Run(); err != nil {
-		log.Fatalf("mrsequential %v failed err %v", args, err)
+		log.Fatalf("seq %v failed err %v", args, err)
 	}
 	outputFile, err := os.Create(filepath.Join(tmp, out))
 	if err != nil {
