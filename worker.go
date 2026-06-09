@@ -1,11 +1,13 @@
 package mapreduce
 
 import (
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"log"
 	"net/rpc"
 	"os"
+	"time"
 )
 
 // Map functions return a slice of KeyValue.
@@ -31,10 +33,37 @@ func Worker(sockname string, mapf func(string, string) []KeyValue,
 	coordSockName = sockname
 
 	// Your worker implementation here.
-
+	for {
+		if task, err := CallFetchTask(); err == nil {
+			switch task.Type {
+			case MapTask:
+				// TODO Map
+				// Map()
+				for {
+					if err := CallReportDone(task.Id, task.Type); err == nil {
+						break
+					}
+					time.Sleep(500 * time.Millisecond)
+				}
+			case ReduceTask:
+				// TODO Reduce
+				// Reduce()
+				for {
+					if err := CallReportDone(task.Id, task.Type); err == nil {
+						break
+					}
+					time.Sleep(500 * time.Millisecond)
+				}
+			case DoneTask:
+				break
+			}
+		} else {
+			time.Sleep(time.Second)
+			// handle err
+		}
+	}
 	// uncomment to send the Example RPC to the coordinator.
-	CallExample()
-
+	// CallExample()
 }
 
 // example function to show how to make an RPC call to the coordinator.
@@ -62,6 +91,40 @@ func CallExample() {
 	} else {
 		fmt.Printf("call failed!\n")
 	}
+}
+
+func CallFetchTask() (FetchTaskReply, error) {
+	reply := FetchTaskReply{}
+
+	ok := call("Coordinator.FetchTask", nil, &reply)
+
+	if ok {
+		return reply, nil
+	} else {
+		return reply, errors.New("fectch task failed")
+	}
+}
+
+func CallReportDone(tid int, ttype TaskType) error {
+	args := ReportDoneArgs{
+		tid,
+		ttype,
+	}
+
+	ok := call("Coordinator.ReportDone", &args, nil)
+	if ok {
+		return nil
+	} else {
+		return errors.New("report done failed")
+	}
+}
+
+func Map() {
+
+}
+
+func Reduce() {
+
 }
 
 // send an RPC request to the coordinator, wait for the response.

@@ -19,5 +19,21 @@ type ExampleReply struct {
 	Y int
 }
 
+type ReportDoneArgs struct {
+	TaskId int
+	Type   TaskType
+}
+
+type ReportDoneReply struct {
+}
+
+type FetchTaskReply struct {
+	Type     TaskType
+	Id       int
+	Filename string // for map task
+	NReduce  int
+	NMap     int // for reduce task
+}
+
 // Add your RPC definitions here.
 // func (t *T) MethodName(argType T1, replyType *T2) error
