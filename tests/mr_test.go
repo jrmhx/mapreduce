@@ -29,8 +29,8 @@ func TestIndexer(t *testing.T) {
 			cleanup()
 		}
 	})
-	app := "../../mrapps/indexer.so"
-	files := findFilesPre("../main", "pg*txt", "..")
+	app := "../../build/indexer.so"
+	files := findFilesPre("../testdata", "pg*txt", "..")
 	mkCorrectOutput(files, app, "mr-indexer-correct.txt")
 	runMR(files, app, 2)
 	mergeOutput("mr-indexer-all.txt")
@@ -46,8 +46,8 @@ func TestMapParallel(t *testing.T) {
 			cleanup()
 		}
 	})
-	app := "../../mrapps/mtiming.so"
-	files := findFilesPre("../main", "pg*txt", "..")
+	app := "../../build/mtiming.so"
+	files := findFilesPre("../testdata", "pg*txt", "..")
 	runMR(files, app, 2)
 	files = findFiles(tmp, "mr-out*")
 	if n := countPattern(files, "times-"); n != 2 {
@@ -66,8 +66,8 @@ func TestReduceParallel(t *testing.T) {
 			cleanup()
 		}
 	})
-	app := "../../mrapps/rtiming.so"
-	files := findFilesPre("../main", "pg*txt", "..")
+	app := "../../build/rtiming.so"
+	files := findFilesPre("../testdata", "pg*txt", "..")
 	runMR(files, app, 2)
 	files = findFiles(tmp, "mr-out*")
 	if n := countPattern(files, "[a-z] 2"); n < 2 {
@@ -83,8 +83,8 @@ func TestJobCount(t *testing.T) {
 			cleanup()
 		}
 	})
-	app := "../../mrapps/jobcount.so"
-	files := findFilesPre("../main", "pg*txt", "..")
+	app := "../../build/jobcount.so"
+	files := findFilesPre("../testdata", "pg*txt", "..")
 	runMR(files, app, 4)
 	files = findFiles(tmp, "mr-out*")
 	if n := countPattern(files, "a 8"); n != 1 {
@@ -102,8 +102,8 @@ func TestEarlyExit(t *testing.T) {
 			cleanup()
 		}
 	})
-	app := "../../mrapps/early_exit.so"
-	files := findFilesPre("../main", "pg*txt", "..")
+	app := "../../build/earlyexit.so"
+	files := findFilesPre("../testdata", "pg*txt", "..")
 	c := make(chan int)
 	c0 := make(chan bool)
 	go func(c chan int) {
@@ -135,9 +135,9 @@ func TestCrashWorker(t *testing.T) {
 			cleanup()
 		}
 	})
-	files := findFilesPre("../main", "pg*txt", "..")
-	mkCorrectOutput(files, "../../mrapps/nocrash.so", "mr-crash-correct.txt")
-	app := "../../mrapps/crash.so"
+	files := findFilesPre("../testdata", "pg*txt", "..")
+	mkCorrectOutput(files, "../../build/nocrash.so", "mr-crash-correct.txt")
+	app := "../../build/crash.so"
 	c := make(chan int)
 	sock := coordinatorSock()
 	go func(c chan int) {
