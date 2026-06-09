@@ -58,41 +58,79 @@ type Coordinator struct {
 
 // Your code here -- RPC handlers for the worker to call.
 
-// an example RPC handler.
-//
 // the RPC argument and reply types are defined in rpc.go.
-func (c *Coordinator) FetchTask(reply *FetchTaskReply) error {
+func (c *Coordinator) FetchTask(_ *struct{}, reply *FetchTaskReply) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
 	switch c.phase {
 	case MapPhase:
+		LatestProcTask := Task{
+			-1,
+			"",
+			time.Time{},
+			Processing,
+		}
 		reply.Type = MapTask
 		reply.NReduce = len(c.rdtsks)
 		reply.NMap = len(c.mptsks)
 		for tid, t := range c.mptsks {
-			if t.status == Idle {
+			switch t.status {
+			case Idle:
 				reply.Id = tid
 				reply.Filename = t.filename
 				t.start = time.Now()
 				t.status = Processing
 				return nil
+			case Processing:
+				if LatestProcTask.id == -1 || t.start.After(LatestProcTask.start) {
+					LatestProcTask.id = t.id
+					LatestProcTask.filename = t.filename
+					LatestProcTask.start = t.start
+					LatestProcTask.status = t.status
+				}
 			}
 		}
-		reply.Type = IdleTask
+		if LatestProcTask.id != -1 {
+			reply.Id = LatestProcTask.id
+			reply.Filename = LatestProcTask.filename
+			c.mptsks[reply.Id].status = Processing
+		} else {
+			return errors.New("Cannot fetch map task")
+		}
 	case ReducePhase:
+		LatestProcTask := Task{
+			-1,
+			"",
+			time.Time{},
+			Processing,
+		}
 		reply.Type = ReduceTask
 		reply.NReduce = len(c.rdtsks)
 		reply.NMap = len(c.mptsks)
 		for tid, t := range c.rdtsks {
-			if t.status == Idle {
+			switch t.status {
+			case Idle:
 				reply.Id = tid
 				t.start = time.Now()
 				t.status = Processing
 				return nil
+			case Processing:
+				if LatestProcTask.id == -1 || t.start.After(LatestProcTask.start) {
+					LatestProcTask.id = t.id
+					// reduce task dont need filename
+					// LatestProcTask.filename = t.filename
+					LatestProcTask.start = t.start
+					LatestProcTask.status = t.status
+				}
 			}
 		}
-		reply.Type = IdleTask
+		if LatestProcTask.id != -1 {
+			reply.Id = LatestProcTask.id
+			// reply.Filename = LatestProcTask.filename
+			c.rdtsks[reply.Id].status = Processing
+		} else {
+			return errors.New("Cannot fetch reduce task")
+		}
 	case DonePhase:
 		reply.Type = DoneTask
 	default:
@@ -103,7 +141,7 @@ func (c *Coordinator) FetchTask(reply *FetchTaskReply) error {
 	return nil
 }
 
-func (c *Coordinator) ReportDone(args *ReportDoneArgs) error {
+func (c *Coordinator) ReportDone(args *ReportDoneArgs, _ *ReportDoneReply) error {
 	shouldSend := false
 	c.mu.Lock()
 	switch args.Type {
@@ -144,9 +182,16 @@ func (c *Coordinator) server(sockname string) {
 // main/mrcoordinator.go calls Done() periodically to find out
 // if the entire job has finished.
 func (c *Coordinator) Done() bool {
-	c.mu.Lock()
+	ret := false
+
+	// Your code here.
 	defer c.mu.Unlock()
-	return c.phase == DonePhase
+	c.mu.Lock()
+	if c.phase == DonePhase {
+		ret = true
+	}
+
+	return ret
 }
 
 func (c *Coordinator) PhaseUpdate() {
@@ -177,13 +222,14 @@ func (c *Coordinator) PhaseUpdate() {
 // main/mrcoordinator.go calls this function.
 // nReduce is the number of reduce tasks to use.
 func MakeCoordinator(sockname string, files []string, nReduce int) *Coordinator {
+	// Your code here.
 	nMap := len(files)
 	c := Coordinator{}
 	c.mptsks = make(map[int]*Task, nMap)
-	for id, filename := range files {
+	for id := 0; id < nMap; id++ {
 		c.mptsks[id] = &Task{
 			id:       id,
-			filename: filename,
+			filename: files[id],
 			start:    time.Time{},
 			status:   Idle,
 		}
@@ -191,9 +237,10 @@ func MakeCoordinator(sockname string, files []string, nReduce int) *Coordinator 
 	c.rdtsks = make(map[int]*Task, nReduce)
 	for id := 0; id < nReduce; id++ {
 		c.rdtsks[id] = &Task{
-			id:     id,
-			start:  time.Time{},
-			status: Idle,
+			id:       id,
+			filename: "",
+			start:    time.Time{},
+			status:   Idle,
 		}
 	}
 	c.phase = MapPhase

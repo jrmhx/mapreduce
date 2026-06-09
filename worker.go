@@ -114,8 +114,9 @@ func CallExample() {
 
 func CallFetchTask() (FetchTaskReply, error) {
 	reply := FetchTaskReply{}
+	args := struct{}{}
 
-	ok := call("Coordinator.FetchTask", nil, &reply)
+	ok := call("Coordinator.FetchTask", &args, &reply)
 
 	if ok {
 		return reply, nil
@@ -129,8 +130,9 @@ func CallReportDone(tid int, ttype TaskType) error {
 		tid,
 		ttype,
 	}
+	reply := ReportDoneReply{}
 
-	ok := call("Coordinator.ReportDone", &args, nil)
+	ok := call("Coordinator.ReportDone", &args, &reply)
 	if ok {
 		return nil
 	} else {
